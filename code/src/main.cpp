@@ -2,12 +2,41 @@
 
 const int frameTime = 50;
 const byte animations[1] = {0b11111111};
-const byte characters[1] = {0b10101010};
+
+/*
+Bit order from left to right
+
+   --0--
+  |     |
+  1     2
+  |     |
+   --3--
+   --4--
+  |     |
+  5     6
+  |     |
+   --7--
+
+*/
+
+const byte characters[10] = {
+    0b11100111, // 0
+    0b00100010, // 1
+    0b10111101, // 2
+    0b10111011, // 3
+    0b01111010, // 4
+    0b11011011, // 5
+    0b11011111, // 6
+    0b10100010, // 7
+    0b11111111, // 8
+    0b11111011, // 9
+};
 
 float balance = 0.0;
 int currentAnimationFrame = 0;
 int currentAnimation = 0;
 int framesSinceLastPlay = 0;
+uint16_t test = 0;
 
 void setup() {
   // setup
