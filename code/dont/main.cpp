@@ -149,6 +149,8 @@ void setup() {
     shiftOut(dataPin, clockPin, MSBFIRST, welcome[i]);
   }
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
+
+  delay(3000);
 }
 
 void loop() {
