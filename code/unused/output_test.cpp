@@ -73,11 +73,23 @@ void printBits(byte myByte) {
   }
   Serial.println();
 }
+volatile unsigned int animationType = 0;
+
+volatile unsigned long lastTime = 0;
+
+void handleInterrupt() {
+  if (lastTime - millis() > 200) {
+    animationType++;
+    animationType %= 3;
+    lastTime = millis();
+  }
+}
 
 void setup() {
   pinMode(dataPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(latchPin, OUTPUT);
+  pinMode(2, INPUT_PULLUP);
 
   // Serial.begin(9600);
 
@@ -86,15 +98,50 @@ void setup() {
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
   digitalWrite(latchPin, HIGH);
 
+  attachInterrupt(digitalPinToInterrupt(2), handleInterrupt, RISING);
+
   delay(1000);
+}
+
+byte animation(int frame) {
+  int offsets[7] = {0, 0, 2, 3, 1, -3, -6};
+  int x = frame % sizeof(offsets) / sizeof(offsets[0]);
+
+  if (offsets[x] > 0) {
+    return (0b10000000 >> x) >> offsets[x];
+  } else {
+    return (0b10000000 >> x) << -offsets[x];
+  }
 }
 
 void loop() {
   digitalWrite(latchPin, LOW);
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[(i + 1) % 6]));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i % 6]));
-  digitalWrite(latchPin, HIGH);
+  switch (animationType) {
+  case 0:
+    shiftOut(dataPin, clockPin, LSBFIRST,
+             convertToOutput(characters[(i + 1) % 10]));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+    digitalWrite(latchPin, HIGH);
+    delay(500);
+    break;
+  case 1:
+    shiftOut(dataPin, clockPin, LSBFIRST,
+             convertToOutput(welcome[(i + 1) % 6]));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i % 6]));
+    digitalWrite(latchPin, HIGH);
+    delay(500);
+    break;
+  case 2:
+
+    shiftOut(dataPin, clockPin, LSBFIRST, animation(i));
+    shiftOut(dataPin, clockPin, LSBFIRST, animation(i + 1));
+    digitalWrite(latchPin, HIGH);
+    delay(50);
+    break;
+  default:
+    animationType = 0;
+    break;
+  }
 
   i++;
-  delay(500);
 }
