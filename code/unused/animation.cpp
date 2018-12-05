@@ -1,11 +1,11 @@
 #include <Arduino.h>
 
 // Serial data out to shift registers
-const int dataPin = 8;
+const int dataPin = 9;
 // Latch to update the current value of the registers
-const int latchPin = 11;
+const int latchPin = 10;
 // Clock for serial data to shift registers
-const int clockPin = 12;
+const int clockPin = 11;
 
 /*
 Bit order from left to right
@@ -100,10 +100,24 @@ void setup() {
   digitalWrite(latchPin, LOW);
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
   digitalWrite(latchPin, HIGH);
   delay(1000);
 
   digitalWrite(latchPin, LOW);
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
   digitalWrite(latchPin, HIGH);
@@ -124,6 +138,14 @@ void loop() {
   digitalWrite(latchPin, LOW);
   // shiftOut(dataPin, clockPin, LSBFIRST, animation(i, loadingSpinnerAnimation,
   // 6));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
+  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(characters[i % 10]));
   digitalWrite(latchPin, HIGH);
   // delay(1000);
