@@ -160,8 +160,7 @@ void handleInterrupt() {
   if (digitalRead(triggerPin)) {
     if (currentState == OFF) {
       currentState = IDLE;
-    }
-    if (currentState == IDLE || currentState == WAITING) {
+    } else if (currentState == IDLE || currentState == WAITING) {
       currentState = START_SPINNING;
     }
   }
@@ -221,12 +220,35 @@ void nextIdleAnimationFrame() {
 }
 
 void nextAnimationFrame() {
+  bool doRedraw = false;
   for (int i = 0; i < 3; i++) {
     if (nextUpdate[i] < millis()) {
       for (int i = 0; i < 3; i++) {
-
+         pos[i] = (pos[i] + 1) % 10;
       }
-      // render numbers
+      doRedraw = true;
+    }
+  }
+
+  if (doRedraw) {
+    int order[3][3] = {
+      {0, 1, 2},
+      {3, 4, 5},
+      {6, 7, 8}
+    };
+    byte output[9];
+
+    for (int i = 0; i < 3; i++) {
+      int before = (pos[i] - 1) % 10;
+      int after = (pos[i] + 1) % 10;
+
+      output[order[i][0]] = characters[before];
+      output[order[i][1]] = characters[pos[i]];
+      output[order[i][2]] = characters[after];
+    }
+
+    for (int i = 0; i < 9; i++) {
+      shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(output[i]));
     }
   }
 }
@@ -249,7 +271,7 @@ void setup() {
 
 
   for (unsigned int i = 0; i < sizeof(welcome); i++) {
-    shiftOut(dataPin, clockPin, MSBFIRST, welcome[i]);
+    shiftOut(dataPin, clockPin, LSBFIRST, welcome[i]);
   }
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
 
