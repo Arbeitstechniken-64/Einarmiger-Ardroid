@@ -22,6 +22,10 @@ const int oneEuroPin = 7;
 // Input to add two euros to the balance
 const int twoEurosPin = 8;
 
+const int balanceClock = 3;
+
+const int balanceData = 4;
+
 ///////////////////////////////////////
 ////          Constants            ////
 ///////////////////////////////////////
@@ -86,11 +90,11 @@ const int loadingSpinnerAnimation[6] = {0, 0, 3, 3, 0, -3};
 ////         State machine         ////
 ///////////////////////////////////////
 
-enum State { IDLE,START_SPINNING, SPINUP, SPINNING, SPINDOWN, RESULT, WAITING };
+enum State { OFF, IDLE, START_SPINNING, SPINUP, SPINNING, SPINDOWN, RESULT, WAITING };
 
 // the current state of the machine
 // this has to be volatile according to the documentation for interrupts
-volatile State currentState = IDLE;
+volatile State currentState = OFF;
 
 ///////////////////////////////////////
 ////          Variables            ////
@@ -154,6 +158,9 @@ void handleInterrupt() {
   }
   debounceTime = millis() + 50;
   if (digitalRead(triggerPin)) {
+    if (currentState == OFF) {
+      currentState = IDLE;
+    }
     if (currentState == IDLE || currentState == WAITING) {
       currentState = START_SPINNING;
     }
@@ -217,7 +224,7 @@ void nextAnimationFrame() {
   for (int i = 0; i < 3; i++) {
     if (nextUpdate[i] < millis()) {
       for (int i = 0; i < 3; i++) {
-        /* code */
+
       }
       // render numbers
     }
@@ -233,11 +240,13 @@ void setup() {
   pinMode(dataPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(latchPin, OUTPUT);
-  pinMode(interruptPin, INPUT);
-  pinMode(triggerPin, INPUT);
-  pinMode(fivetyCentPin, INPUT);
-  pinMode(oneEuroPin, INPUT);
-  pinMode(twoEurosPin, INPUT);
+  pinMode(interruptPin, INPUT_PULLUP);
+  pinMode(triggerPin, INPUT_PULLUP);
+  pinMode(fivetyCentPin, INPUT_PULLUP);
+  pinMode(oneEuroPin, INPUT_PULLUP);
+  pinMode(twoEurosPin, INPUT_PULLUP);
+
+
 
   for (unsigned int i = 0; i < sizeof(welcome); i++) {
     shiftOut(dataPin, clockPin, MSBFIRST, welcome[i]);
@@ -249,6 +258,11 @@ void setup() {
 
 void loop() {
   switch (currentState) {
+  case OFF:
+    for (int i = 0; i < 9; i++) {
+      shiftOut(dataPin, clockPin, LSBFIRST, 0b00000000);
+      delay(200);
+    }
   case IDLE:
     nextIdleAnimationFrame();
     break;
