@@ -12,19 +12,19 @@ const int latchPin = 10;
 const int clockPin = 11;
 
 // Interrupt for buttons
-const int interruptPin = 2;
+const int interruptPin = 1;
 // Input to start game
-const int triggerPin = 5;
+const int triggerPin = 2;
 // Input to add 50 cents to the balance
-const int fivetyCentPin = 6;
+const int fivetyCentPin = 3;
 // Input to add one euro to the balance
-const int oneEuroPin = 7;
+const int oneEuroPin = 4;
 // Input to add two euros to the balance
-const int twoEurosPin = 8;
+const int twoEurosPin = 5;
 
-const int balanceClock = 3;
+const int balanceClock = 6;
 
-const int balanceData = 4;
+const int balanceData = 7;
 
 ///////////////////////////////////////
 ////          Constants            ////
@@ -157,20 +157,20 @@ void handleInterrupt() {
     return;
   }
   debounceTime = millis() + 50;
-  if (digitalRead(triggerPin)) {
+  if (!digitalRead(triggerPin)) {
     if (currentState == OFF) {
       currentState = IDLE;
     } else if (currentState == IDLE || currentState == WAITING) {
       currentState = START_SPINNING;
     }
   }
-  if (digitalRead(fivetyCentPin)) {
+  if (!digitalRead(fivetyCentPin)) {
     balance += 50;
   }
-  if (digitalRead(oneEuroPin)) {
+  if (!digitalRead(oneEuroPin)) {
     balance += 100;
   }
-  if (digitalRead(twoEurosPin)) {
+  if (!digitalRead(twoEurosPin)) {
     balance += 200;
   }
 }
