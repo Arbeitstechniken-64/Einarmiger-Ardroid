@@ -39,6 +39,7 @@ const int waitBeforeIdle = 5000;
 const int spinTime = 5000;
 // minimum ms per frame
 const unsigned long topSpeed = 200;
+const unsigned long almostMinSpeed = 800;
 const unsigned long minSpeed = 1000;
 
 /*
@@ -74,16 +75,12 @@ const byte characters[10] = {
 int offsets[] = {0, 0, 0, 0, 1, -1, 0, 0};
 
 // Characters to display the word HELLO in 7-segment form
-const byte welcome[9] = {
+const byte welcome[5] = {
     0b01111110, // H
     0b11011011, // E
     0b01000011, // L
     0b01000011, // L
     0b11100111, // O
-    0b00000000, // space
-    0b00000000, // space
-    0b00000000, // space
-    0b00000000, // space
 };
 
 const int loadingSpinnerAnimation[6] = {0, 0, 3, 3, 0, -3};
@@ -155,28 +152,36 @@ unsigned long debounceTime;
 
 void handleInterrupt() {
   if (debounceTime > millis()) {
+    debounceTime = millis() + 100;
     return;
   }
-  debounceTime = millis() + 200;
   if (!digitalRead(triggerPin)) {
-    Serial.println("GO");
     if (currentState == OFF) {
+      Serial.println("ON");
       currentState = IDLE;
+      debounceTime = millis() + 500;
     } else if (currentState == IDLE || currentState == WAITING) {
+      Serial.println("GO");
       currentState = START_SPINNING;
+      debounceTime = millis() + 500;
     }
   }
-  if (!digitalRead(fivetyCentPin)) {
-    Serial.println("BUTTON 0.5");
-    balance += 50;
-  }
-  if (!digitalRead(oneEuroPin)) {
-    Serial.println("BUTTON 1");
-    balance += 100;
-  }
-  if (!digitalRead(twoEurosPin)) {
-    Serial.println("BUTTON 2");
-    balance += 200;
+  if (currentState == IDLE || currentState == WAITING) {
+    if (!digitalRead(fivetyCentPin)) {
+      Serial.println("BUTTON 0.5");
+      balance += 50;
+      debounceTime = millis() + 500;
+    }
+    if (!digitalRead(oneEuroPin)) {
+      Serial.println("BUTTON 1");
+      balance += 100;
+      debounceTime = millis() + 500;
+    }
+    if (!digitalRead(twoEurosPin)) {
+      Serial.println("BUTTON 2");
+      balance += 200;
+      debounceTime = millis() + 500;
+    }
   }
 }
 
@@ -206,7 +211,7 @@ void spinup() {
       }
       nextUpdateTime = millis() + frameTime;
     }
-    if (speed[0] < topSpeed && speed[1] < topSpeed && speed[2] < topSpeed) {
+    if (speed[0] <= topSpeed && speed[1] <= topSpeed && speed[2] <= topSpeed) {
         spinEndTime = millis() + spinTime;
         currentState = SPINNING;
     }
@@ -215,10 +220,11 @@ void spinup() {
 void spindown() {
     if(millis() > nextUpdateTime) {
       for (int i = 0; i < 3; i++) {
+        if (speed[i] > almostMinSpeed && pos[i] == result[i]) {
+          running[i] = false;
+        }
         if (speed[i] < minSpeed) {
           speed[i] += accel[i];
-        } else if (pos[i] == result[i]) {
-          running[i] = false;
         }
       }
       if (!running[0] && !running[1] && !running[2]) {
@@ -294,17 +300,27 @@ void setup() {
   delay(500);
 
   Serial.println("Boot");
-
   digitalWrite(latchPin, LOW);
-  for (unsigned int i = 0; i < sizeof(welcome); i++) {
-    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i]));
+  for (int i = 0; i < 9; i++) {
+    shiftOut(dataPin, clockPin, LSBFIRST, 0b00000000);
   }
   digitalWrite(latchPin, HIGH);
 
-
+  for (unsigned int i = 0; i< sizeof(welcome); i++) {
+    digitalWrite(latchPin, LOW);
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i]));
+    digitalWrite(latchPin, HIGH);
+    delay(350);
+  }
+  for (unsigned int i = 0; i < 9; i++) {
+    digitalWrite(latchPin, LOW);
+    shiftOut(dataPin, clockPin, LSBFIRST, 0b00000000);
+    digitalWrite(latchPin, HIGH);
+    delay(350);
+  }
   Serial.println("Welcome");
 
-  attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
   delay(2000);
 }
 
