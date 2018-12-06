@@ -22,8 +22,9 @@ const int oneEuroPin = 4;
 // Input to add two euros to the balance
 const int twoEurosPin = 5;
 
+// 4 block 7-segment display clock
 const int balanceClock = 6;
-
+// 4 block 7-segment display data
 const int balanceData = 7;
 
 ///////////////////////////////////////
@@ -247,9 +248,11 @@ void nextAnimationFrame() {
       output[order[i][2]] = characters[after];
     }
 
+    digitalWrite(latchPin, LOW);
     for (int i = 0; i < 9; i++) {
       shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(output[i]));
     }
+    digitalWrite(latchPin, HIGH);
   }
 }
 
@@ -268,14 +271,18 @@ void setup() {
   pinMode(oneEuroPin, INPUT_PULLUP);
   pinMode(twoEurosPin, INPUT_PULLUP);
 
+  delay(500);
 
 
+  digitalWrite(latchPin, LOW);
   for (unsigned int i = 0; i < sizeof(welcome); i++) {
     shiftOut(dataPin, clockPin, LSBFIRST, welcome[i]);
   }
+  digitalWrite(latchPin, HIGH);
+
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
 
-  delay(3000);
+  delay(2000);
 }
 
 void loop() {
