@@ -56,29 +56,104 @@ Bit order from left to right
    --6--
 
 */
+
+const int idleAnimationSizes[2] = {8, 5};
+//          [animation][frames][x][y]
+const byte idleAnimations[2][8][3][3] = {
+  {
+    {
+      {0b11111111, 0b00000000, 0b00000000},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00000000, 0b00000000, 0b00010001},
+    },
+    {
+      {0b00000000, 0b00000000, 0b00000000},
+      {0b11111111, 0b00010001, 0b00010001},
+      {0b00000000, 0b00000000, 0b00000000},
+    },
+    {
+      {0b00000000, 0b00000000, 0b00010001},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b11111111, 0b00000000, 0b00000000},
+    },
+    {
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00000000, 0b11111111, 0b00000000},
+    },
+    {
+      {0b00010001, 0b00000000, 0b00000000},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00000000, 0b00000000, 0b11111111},
+    },
+    {
+      {0b00000000, 0b00000000, 0b00000000},
+      {0b00010001, 0b00010001, 0b11111111},
+      {0b00000000, 0b00000000, 0b00000000},
+    },
+    {
+      {0b00000000, 0b00000000, 0b11111111},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00010001, 0b00000000, 0b00000000},
+    },
+    {
+      {0b00000000, 0b11111111, 0b00000000},
+      {0b00000000, 0b00010001, 0b00000000},
+      {0b00000000, 0b00010001, 0b00000000},
+    },
+  },
+  {
+    {
+      {0b11000100, 0b10000000, 0b10101000},
+      {0b01000100, 0b00000000, 0b00101000},
+      {0b01000110, 0b00000010, 0b00101010},
+    },
+    {
+      {0b00110010, 0b01111100, 0b01010010},
+      {0b10010010, 0b00000000, 0b10010010},
+      {0b10011000, 0b01111100, 0b10010100},
+    },
+    {
+      {0b00001000, 0b00000010, 0b00000100},
+      {0b00101000, 0b00000000, 0b01000100},
+      {0b00100000, 0b10000000, 0b01000000},
+    },
+    {
+      {0b00000000, 0b00000000, 0b00000000},
+      {0b00000000, 0b11101110, 0b00000000},
+      {0b00000000, 0b00000000, 0b00000000},
+    },
+    {
+      {0b00000000, 0b00000000, 0b00000000},
+      {0b00000000, 0b01111101, 0b00000000},
+      {0b00000000, 0b00000000, 0b00000000},
+    },
+  },
+};
+
 // numbers in 7-segment form
 const byte numbers[10] = {
-    0b11101110, // 0
-    0b00101000, // 1
-    0b10110110, // 2
-    0b10111010, // 3
-    0b01111000, // 4
-    0b11011010, // 5
-    0b11011110, // 6
-    0b10101000, // 7
-    0b11111110, // 8
-    0b11111010, // 9
+  0b11101110, // 0
+  0b00101000, // 1
+  0b10110110, // 2
+  0b10111010, // 3
+  0b01111000, // 4
+  0b11011010, // 5
+  0b11011110, // 6
+  0b10101000, // 7
+  0b11111110, // 8
+  0b11111010, // 9
 };
 
 const byte winSymbol = 0b01111100;
 const byte loseSymbol = 0b00011110;
 
 const byte scrolling[5] = {
-    0b10000000,
-    0b01100000,
-    0b00010000,
-    0b00001100,
-    0b00000010,
+  0b10000000,
+  0b01100000,
+  0b00010000,
+  0b00001100,
+  0b00000010,
 };
 
 
@@ -87,11 +162,17 @@ int offsets[] = {0, 0, 0, 0, 1, -1, 0, 0};
 
 // characters to display the word HELLO in 7-segment form
 const byte welcome[5] = {
-    0b01111100, // H
-    0b11010110, // E
-    0b01000110, // L
-    0b01000110, // L
-    0b11101110, // O
+  0b01111100, // H
+  0b11010110, // E
+  0b01000110, // L
+  0b01000110, // L
+  0b11101110, // O
+};
+
+const int segmentOrder[3][3] = {
+  {0, 1, 2},
+  {3, 4, 5},
+  {6, 7, 8}
 };
 
 ///////////////////////////////////////
@@ -116,6 +197,8 @@ unsigned long spinEndTime = 0;
 
 unsigned long nextStageTime = 0;
 unsigned long nextUpdateTime = 0;
+unsigned long currentIdleAnimation = 0;
+unsigned long currentIdleAnimationFrame = 0;
 
 int win = 0;
 int deltaBalance = 0;
@@ -132,14 +215,6 @@ unsigned long debounceTime;
 ///////////////////////////////////////
 ////       Helper functions        ////
 ///////////////////////////////////////
-
-/**
-  Plays a 1-bit animation.
-*/
-byte animation(int frame, int offsets[], int size) {
-  int x = frame % size;
-    return (0b10000000 >> offsets[x]);
-}
 
 void handleInterrupt() {
   if (debounceTime > millis()) {
@@ -192,89 +267,120 @@ void animateBalanceChange(){
 }
 
 void startSpinning() {
-    randomSeed(millis());
-    fillLoseSymbols();
-    long randomOurcome = random(100);
+  randomSeed(millis());
+  fillLoseSymbols();
+  long randomOurcome = random(100);
 
-    if (randomOurcome < 25) {
-      win = 0; // (25%)
-      for (int i = 0; i < 3; i++) {
-        result[0][i] = random(2) ? winSymbol : loseSymbol;
-        result[1][i] = random(2) ? winSymbol : loseSymbol;
-      }
-    } else if (randomOurcome < 50) {
-      win = 50; // (25%)
-      if (random(2)) {
-        result[0][0] = winSymbol;
-        result[2][2] = winSymbol;
-      } else {
-        result[0][2] = winSymbol;
-        result[2][0] = winSymbol;
-      }
-      result[1][1] = winSymbol;
-    } else if (randomOurcome < 75) {
-      win = 100; // (25%)
-      int height = random(2) ? 0 : 2;
-      for (int i = 0; i < 3; i++) {
-        result[i][height] = winSymbol;
-      }
-    } else {
-      win = 200; // (25%)
-      for (int i = 0; i < 3; i++) {
-        result[i][1] = winSymbol;
-      }
-    }
-
+  if (randomOurcome < 25) {
+    win = 0; // (25%)
     for (int i = 0; i < 3; i++) {
-      accel[i] = random(50, 60);
-      speed[i] = minSpeed;
-
-      for (int j = 0; j < 3; j++) {
-        Serial.print(result[i][j] == winSymbol ? "X " : "0 ");
-      }
-      Serial.print("| ");
-      Serial.print(accel[i]);
-      Serial.println();
+      result[0][i] = random(2) ? winSymbol : loseSymbol;
+      result[1][i] = random(2) ? winSymbol : loseSymbol;
     }
+  } else if (randomOurcome < 50) {
+    win = 50; // (25%)
+    if (random(2)) {
+      result[0][0] = winSymbol;
+      result[2][2] = winSymbol;
+    } else {
+      result[0][2] = winSymbol;
+      result[2][0] = winSymbol;
+    }
+    result[1][1] = winSymbol;
+  } else if (randomOurcome < 75) {
+    win = 100; // (25%)
+    int height = random(2) ? 0 : 2;
+    for (int i = 0; i < 3; i++) {
+      result[i][height] = winSymbol;
+    }
+  } else {
+    win = 200; // (25%)
+    for (int i = 0; i < 3; i++) {
+      result[i][1] = winSymbol;
+    }
+  }
 
-    currentState = SPINUP;
+  for (int i = 0; i < 3; i++) {
+    accel[i] = random(50, 60);
+    speed[i] = minSpeed;
+
+    Serial.print(' ');
+    for (int j = 0; j < 3; j++) {
+      Serial.print(result[i][j] == winSymbol ? 'X' : '0');
+      Serial.print(' ');
+    }
+    Serial.print(" | ");
+    Serial.println(accel[i]);
+    Serial.println("-------");
+  }
+
+  currentState = SPINUP;
 }
 
 void spinup() {
-    if(millis() > nextUpdateTime) {
-      for (int i = 0; i < 3; i++) {
-        if (speed[i] > topSpeed) {
-          speed[i] -= accel[i];
-        }
+  if(millis() > nextUpdateTime) {
+    for (int i = 0; i < 3; i++) {
+      if (speed[i] > topSpeed) {
+        speed[i] -= accel[i];
       }
-      nextUpdateTime = millis() + frameTime;
     }
-    if (speed[0] <= topSpeed && speed[1] <= topSpeed && speed[2] <= topSpeed) {
-        spinEndTime = millis() + spinTime;
-        currentState = SPINNING;
+    nextUpdateTime = millis() + frameTime;
+  }
+  if (speed[0] <= topSpeed && speed[1] <= topSpeed && speed[2] <= topSpeed) {
+    spinEndTime = millis() + spinTime;
+    for (int i = 0; i < 3; i++) {
+      accel[i] /= 3;
     }
+    currentState = SPINNING;
+  }
 }
 
 void spindown() {
-    if(millis() > nextUpdateTime) {
-      for (int i = 0; i < 3; i++) {
-        if (speed[i] < minSpeed) {
-          speed[i] += accel[i];
-        }
+  if(millis() > nextUpdateTime) {
+    for (int i = 0; i < 3; i++) {
+      if (speed[i] < minSpeed) {
+        speed[i] += accel[i];
       }
-      if (speed[0] > almostMinSpeed && speed[1] > almostMinSpeed && speed[2] > almostMinSpeed) {
-        Serial.println("Round over!");
-        deltaBalance = win;
-        win = 0;
-        spinEndTime = millis() + waitBeforeIdle;
-        currentState = WAITING;
-      }
-      nextUpdateTime = millis() + frameTime;
     }
+    if (speed[0] > almostMinSpeed && speed[1] > almostMinSpeed && speed[2] > almostMinSpeed) {
+      Serial.println("Round over!");
+      deltaBalance = win;
+      win = 0;
+      spinEndTime = millis() + waitBeforeIdle;
+      currentState = WAITING;
+    }
+    nextUpdateTime = millis() + frameTime;
+  }
+}
+
+void redraw(byte output[9]){
+  // Serial.println("Draw");
+
+  for (int i = 0; i < 3; i++) {
+    Serial.print(speed[i]);
+    Serial.print(' ');
+
+    if (speed[i] > almostMinSpeed) {
+      for (int j = 0; j < 3; j++) {
+        output[segmentOrder[i][j]] = result[i][j];
+      }
+    } else {
+      output[segmentOrder[i][0]] = scrolling[(pos[i] - 1) % 5];
+      output[segmentOrder[i][1]] = scrolling[pos[i]];
+      output[segmentOrder[i][2]] = scrolling[(pos[i] + 1) % 5];
+    }
+  }
+  Serial.println();
+
+  digitalWrite(latchPin, LOW);
+  for (int i = 0; i < 9; i++) {
+    shiftOut(dataPin, clockPin, LSBFIRST, output[i]);
+  }
+  digitalWrite(latchPin, HIGH);
 }
 
 void nextIdleAnimationFrame() {
-
+  currentIdleAnimation++;
 }
 
 void nextAnimationFrame() {
@@ -288,35 +394,7 @@ void nextAnimationFrame() {
   }
 
   if (doRedraw) {
-    // Serial.println("Draw");
-    int order[3][3] = {
-      {0, 1, 2},
-      {3, 4, 5},
-      {6, 7, 8}
-    };
-    byte output[9];
 
-    for (int i = 0; i < 3; i++) {
-      Serial.print(speed[i]);
-      Serial.print(' ');
-
-      if (speed[i] > almostMinSpeed) {
-        for (int j = 0; j < 3; j++) {
-          output[order[i][j]] = result[i][j];
-        }
-      } else {
-        output[order[i][0]] = scrolling[(pos[i] - 1) % 5];
-        output[order[i][1]] = scrolling[pos[i]];
-        output[order[i][2]] = scrolling[(pos[i] + 1) % 5];
-      }
-    }
-    Serial.println();
-
-    digitalWrite(latchPin, LOW);
-    for (int i = 0; i < 9; i++) {
-      shiftOut(dataPin, clockPin, LSBFIRST, output[i]);
-    }
-    digitalWrite(latchPin, HIGH);
   }
 }
 
@@ -345,7 +423,7 @@ void setup() {
   }
   digitalWrite(latchPin, HIGH);
 
-  for (unsigned int i = 0; i< sizeof(welcome); i++) {
+  for (unsigned int i = 0; i < sizeof(welcome); i++) {
     digitalWrite(latchPin, LOW);
     shiftOut(dataPin, clockPin, LSBFIRST, welcome[i]);
     digitalWrite(latchPin, HIGH);
