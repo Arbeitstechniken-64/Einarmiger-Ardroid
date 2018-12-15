@@ -50,40 +50,49 @@ Bit order from left to right
   1     2
   |     |
    --3--
-   --4--
   |     |
-  6     5
+  5     4
   |     |
-   --7--
+   --6--
 
 */
-// Characters in 7-segment form
-const byte characters[10] = {
-    0b11100111, // 0
-    0b00100100, // 1
-    0b10111011, // 2
-    0b10111101, // 3
-    0b01111100, // 4
-    0b11011101, // 5
-    0b11011111, // 6
-    0b10100100, // 7
-    0b11111111, // 8
-    0b11111101, // 9
+// numbers in 7-segment form
+const byte numbers[10] = {
+    0b11101110, // 0
+    0b00101000, // 1
+    0b10110110, // 2
+    0b10111010, // 3
+    0b01111000, // 4
+    0b11011010, // 5
+    0b11011110, // 6
+    0b10101000, // 7
+    0b11111110, // 8
+    0b11111010, // 9
 };
+
+const byte winSymbol = 0b01111100;
+const byte loseSymbol = 0b00011110;
+
+const byte scrolling[5] = {
+    0b10000000,
+    0b01100000,
+    0b00010000,
+    0b00001100,
+    0b00000010,
+};
+
 
 // Propper offsets from top to bottom:
 int offsets[] = {0, 0, 0, 0, 1, -1, 0, 0};
 
-// Characters to display the word HELLO in 7-segment form
+// characters to display the word HELLO in 7-segment form
 const byte welcome[5] = {
-    0b01111110, // H
-    0b11011011, // E
-    0b01000011, // L
-    0b01000011, // L
-    0b11100111, // O
+    0b01111100, // H
+    0b11010110, // E
+    0b01000110, // L
+    0b01000110, // L
+    0b11101110, // O
 };
-
-const int loadingSpinnerAnimation[6] = {0, 0, 3, 3, 0, -3};
 
 ///////////////////////////////////////
 ////         State machine         ////
@@ -108,36 +117,21 @@ unsigned long spinEndTime = 0;
 unsigned long nextStageTime = 0;
 unsigned long nextUpdateTime = 0;
 
-int result[3];
+int win = 0;
+int deltaBalance = 0;
+
+int pos[3];
+byte result[3][3];
 unsigned long accel[3];
 unsigned long speed[3];
-boolean running[3];
+
 unsigned long nextUpdate[3];
-int pos[3];
+unsigned long debounceTime;
 
 
 ///////////////////////////////////////
 ////       Helper functions        ////
 ///////////////////////////////////////
-
-byte convertToOutput(byte data) {
-  return (data & 0b11110000) | (data & 0b00000111) << 1;
-}
-
-/**
-
-*/
-byte shiftBits(byte data, int *offsets) {
-  byte out = 0;
-  for (byte i = 0; i < sizeof(offsets); i++) {
-    if (offsets[i] > 0) {
-      out |= (data & (0b10000000 >> i)) >> offsets[i];
-    } else {
-      out |= (data & (0b10000000 >> i)) << -offsets[i];
-    }
-  }
-  return out;
-}
 
 /**
   Plays a 1-bit animation.
@@ -146,9 +140,6 @@ byte animation(int frame, int offsets[], int size) {
   int x = frame % size;
     return (0b10000000 >> offsets[x]);
 }
-
-
-unsigned long debounceTime;
 
 void handleInterrupt() {
   if (debounceTime > millis()) {
@@ -170,34 +161,81 @@ void handleInterrupt() {
     if (!digitalRead(fivetyCentPin)) {
       Serial.println("BUTTON 0.5");
       balance += 50;
+      deltaBalance += 50;
       debounceTime = millis() + 500;
     }
     if (!digitalRead(oneEuroPin)) {
       Serial.println("BUTTON 1");
       balance += 100;
+      deltaBalance += 100;
       debounceTime = millis() + 500;
     }
     if (!digitalRead(twoEurosPin)) {
       Serial.println("BUTTON 2");
       balance += 200;
+      deltaBalance += 200;
       debounceTime = millis() + 500;
     }
   }
 }
 
-void startSpinning() {
-    for (int i = 0; i < 3; i++) {
-      result[i] = random(10);
-      accel[i] = random(20, 30);
-      speed[i] = minSpeed;
-      running[i] = true;
-
-      Serial.print(result[i]);
-      Serial.print(' ');
-      Serial.print(accel[i]);
-      Serial.print('|');
+void fillLoseSymbols(){
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      result[i][j] = loseSymbol;
     }
-    Serial.println();
+  }
+}
+
+void animateBalanceChange(){
+  // todo
+}
+
+void startSpinning() {
+    randomSeed(millis());
+    fillLoseSymbols();
+    long randomOurcome = random(100);
+
+    if (randomOurcome < 25) {
+      win = 0; // (25%)
+      for (int i = 0; i < 3; i++) {
+        result[0][i] = random(2) ? winSymbol : loseSymbol;
+        result[1][i] = random(2) ? winSymbol : loseSymbol;
+      }
+    } else if (randomOurcome < 50) {
+      win = 50; // (25%)
+      if (random(2)) {
+        result[0][0] = winSymbol;
+        result[2][2] = winSymbol;
+      } else {
+        result[0][2] = winSymbol;
+        result[2][0] = winSymbol;
+      }
+      result[1][1] = winSymbol;
+    } else if (randomOurcome < 75) {
+      win = 100; // (25%)
+      int height = random(2) ? 0 : 2;
+      for (int i = 0; i < 3; i++) {
+        result[i][height] = winSymbol;
+      }
+    } else {
+      win = 200; // (25%)
+      for (int i = 0; i < 3; i++) {
+        result[i][1] = winSymbol;
+      }
+    }
+
+    for (int i = 0; i < 3; i++) {
+      accel[i] = random(50, 60);
+      speed[i] = minSpeed;
+
+      for (int j = 0; j < 3; j++) {
+        Serial.print(result[i][j] == winSymbol ? "X " : "0 ");
+      }
+      Serial.print("| ");
+      Serial.print(accel[i]);
+      Serial.println();
+    }
 
     currentState = SPINUP;
 }
@@ -220,15 +258,14 @@ void spinup() {
 void spindown() {
     if(millis() > nextUpdateTime) {
       for (int i = 0; i < 3; i++) {
-        if (speed[i] > almostMinSpeed && pos[i] == result[i]) {
-          running[i] = false;
-        }
         if (speed[i] < minSpeed) {
           speed[i] += accel[i];
         }
       }
-      if (!running[0] && !running[1] && !running[2]) {
+      if (speed[0] > almostMinSpeed && speed[1] > almostMinSpeed && speed[2] > almostMinSpeed) {
         Serial.println("Round over!");
+        deltaBalance = win;
+        win = 0;
         spinEndTime = millis() + waitBeforeIdle;
         currentState = WAITING;
       }
@@ -243,8 +280,8 @@ void nextIdleAnimationFrame() {
 void nextAnimationFrame() {
   bool doRedraw = false;
   for (int i = 0; i < 3; i++) {
-    if (running[i] && nextUpdate[i] < millis()) {
-      pos[i] = (pos[i] + 1) % 10;
+    if (nextUpdate[i] < millis()) {
+      pos[i] = (pos[i] + 1) % 5;
       nextUpdate[i] = millis() + speed[i];
       doRedraw = true;
     }
@@ -262,18 +299,22 @@ void nextAnimationFrame() {
     for (int i = 0; i < 3; i++) {
       Serial.print(speed[i]);
       Serial.print(' ');
-      int before = (pos[i] + 9) % 10;
-      int after = (pos[i] + 1) % 10;
 
-      output[order[i][0]] = characters[before];
-      output[order[i][1]] = characters[pos[i]];
-      output[order[i][2]] = characters[after];
+      if (speed[i] > almostMinSpeed) {
+        for (int j = 0; j < 3; j++) {
+          output[order[i][j]] = result[i][j];
+        }
+      } else {
+        output[order[i][0]] = scrolling[(pos[i] - 1) % 5];
+        output[order[i][1]] = scrolling[pos[i]];
+        output[order[i][2]] = scrolling[(pos[i] + 1) % 5];
+      }
     }
     Serial.println();
 
     digitalWrite(latchPin, LOW);
     for (int i = 0; i < 9; i++) {
-      shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(output[i]));
+      shiftOut(dataPin, clockPin, LSBFIRST, output[i]);
     }
     digitalWrite(latchPin, HIGH);
   }
@@ -285,7 +326,6 @@ void nextAnimationFrame() {
 ///////////////////////////////////////
 
 void setup() {
-  randomSeed(analogRead(0));
   pinMode(dataPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(latchPin, OUTPUT);
@@ -296,10 +336,9 @@ void setup() {
   pinMode(twoEurosPin, INPUT_PULLUP);
 
   Serial.begin(9600);
+  Serial.print("Booting...");
+  delay(250);
 
-  delay(500);
-
-  Serial.println("Boot");
   digitalWrite(latchPin, LOW);
   for (int i = 0; i < 9; i++) {
     shiftOut(dataPin, clockPin, LSBFIRST, 0b00000000);
@@ -308,7 +347,7 @@ void setup() {
 
   for (unsigned int i = 0; i< sizeof(welcome); i++) {
     digitalWrite(latchPin, LOW);
-    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i]));
+    shiftOut(dataPin, clockPin, LSBFIRST, welcome[i]);
     digitalWrite(latchPin, HIGH);
     delay(350);
   }
@@ -318,13 +357,17 @@ void setup() {
     digitalWrite(latchPin, HIGH);
     delay(350);
   }
-  Serial.println("Welcome");
 
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, FALLING);
-  delay(2000);
+  delay(1000);
+
+  Serial.println("Done!");
 }
 
 void loop() {
+  if (deltaBalance != 0) {
+    animateBalanceChange();
+  }
   // Serial.println(currentState);
   switch (currentState) {
   case OFF:
@@ -336,7 +379,10 @@ void loop() {
     digitalWrite(latchPin, HIGH);
     delay(5000);
   case IDLE:
-    nextIdleAnimationFrame();
+    if (nextUpdateTime > millis()) {
+      nextUpdateTime = millis() + 750;
+      nextIdleAnimationFrame();
+    }
     break;
   case START_SPINNING:
     startSpinning();
