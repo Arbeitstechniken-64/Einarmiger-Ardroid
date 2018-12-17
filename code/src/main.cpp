@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "SevenSegmentTM1637.h"
 
 ///////////////////////////////////////
 ////             Pins              ////
@@ -23,13 +24,15 @@ const int oneEuroPin = 4;
 const int twoEurosPin = 3;
 
 // 4 block 7-segment display clock
-const int balanceClock = 12;
+const int balanceClock = 13;
 // 4 block 7-segment display data
-const int balanceData = 13;
+const int balanceData = 12;
 
 ///////////////////////////////////////
 ////          Constants            ////
 ///////////////////////////////////////
+
+SevenSegmentTM1637 display(balanceClock, balanceData);
 
 // Time between frames 1000/50 = 20 fps
 const int frameTime = 500;
@@ -170,8 +173,8 @@ const byte numbers[10] = {
   0b11111010, // 9
 };
 
-const byte winSymbol = 0b01111100;
-const byte loseSymbol = 0b00011110;
+const byte winSymbol = 0b10101000;
+const byte loseSymbol = 0b00010000;
 
 const byte scrolling[5] = {
   0b10000000,
@@ -243,12 +246,12 @@ unsigned long debounceTime;
 
 void handleInterrupt() {
   if (debounceTime > millis()) {
-    debounceTime = millis() + 1000;
     return;
   }
   if (!digitalRead(triggerPin)) {
     if (currentState == OFF) {
       Serial.println("ON");
+      display.print("PLAY");
       currentState = IDLE;
       debounceTime = millis() + 1000;
     } else if (currentState == IDLE || currentState == WAITING) {
@@ -315,18 +318,48 @@ void fillLoseSymbols(){
   }
 }
 
-void animateBalanceChange(){
-  // todo
+void renderMatrix(byte matrix[3][3]) {
+  byte output[9];
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      output[segmentOrder[i][j]] = matrix[i][j];
+    }
+  }
+  printData(output);
 }
 
+void renderBalance() {
+  String balanceDisplay = String(balance - deltaBalance);
+  while (balanceDisplay.length() < 4) {
+    balanceDisplay = " " + balanceDisplay;
+  }
+  display.print(balanceDisplay);
+}
+
+void animateBalanceChange() {
+  deltaBalance += deltaBalance > 0 ? -5 : 5;
+  renderBalance();
+}
+
+bool isDisplayOn = true;
 void animateBalanceBlink() {
   if (nextUpdateTime > millis()) {
     return;
   }
-  nextUpdateTime = millis() + 150;
+  Serial.print("Blink ");
+  Serial.println(isDisplayOn);
+  nextUpdateTime = millis() + 350;
   blinkBalance--;
-  // toggle balance visibility
 
+  if (isDisplayOn) {
+    display.off();
+    isDisplayOn = false;
+  } else {
+    display.on();
+    renderBalance();
+    isDisplayOn = true;
+  }
 }
 
 void startSpinning() {
@@ -444,35 +477,31 @@ void spindown() {
   }
 }
 
-void renderMatrix(byte matrix[3][3]) {
-  byte output[9];
-
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      output[segmentOrder[i][j]] = matrix[i][j];
-    }
-  }
-  printData(output);
-}
+bool lastState = false;
 
 void blinkWin() {
+  bool state = ((spinEndTime - millis()) / blinkTime) % 2 == 0;
+  if(state == lastState){
+    return;
+  }
+  lastState = state;
   byte data[3][3];
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      data[i][j] = result[i][j];
+      data[i][j] = result[j][i];
     }
   }
-  if (((spinEndTime - millis()) / blinkTime) % 2 == 0) {
+  if (state) {
     switch (wintype) {
-      case HMID:
-        data[1][0] = 0b00000000;
-        data[1][1] = 0b00000000;
-        data[1][2] = 0b00000000;
-        break;
       case HTOP:
         data[0][0] = 0b00000000;
         data[0][1] = 0b00000000;
         data[0][2] = 0b00000000;
+        break;
+      case HMID:
+        data[1][0] = 0b00000000;
+        data[1][1] = 0b00000000;
+        data[1][2] = 0b00000000;
         break;
       case HBOT:
         data[2][0] = 0b00000000;
@@ -559,6 +588,9 @@ void setup() {
 
   Serial.begin(9600);
   Serial.print("Booting...");
+  display.begin();
+  display.off();
+  display.setBacklight(100);
   // for (int i = 0; i < 8; i++) {
   //   digitalWrite(latchPin, LOW);
   //   for (int j = 0; j < 9; j++) {
@@ -615,7 +647,11 @@ void loop() {
       startSpinning();
     } else {
       blinkBalance = 6;
-      currentState = IDLE;
+      if (millis() > spinEndTime) {
+        currentState = IDLE;
+      } else {
+        currentState = WAITING;
+      }
     }
     break;
   case SPINUP:
@@ -633,8 +669,8 @@ void loop() {
     nextAnimationFrame();
     break;
   case WAITING:
+    // nextAnimationFrame();
     blinkWin();
-    nextAnimationFrame();
     // do not play an animation
     if (millis() > spinEndTime) {
       currentState = IDLE;
