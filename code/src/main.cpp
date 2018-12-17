@@ -43,6 +43,7 @@ const unsigned long minSpeed = 450;
 const unsigned long startSpeed = 390;
 const int minRandomAccell = 30;
 const int maxRandomAccell = 40;
+const int blinkTime = 250;
 
 /*
 Bit order from left to right
@@ -206,6 +207,8 @@ enum State { OFF, IDLE, START_SPINNING, SPINUP, SPINNING, SPINDOWN, WAITING };
 // this has to be volatile according to the documentation for interrupts
 volatile State currentState = OFF;
 
+enum WinType { HTOP, HMID, HBOT, DTL, DTR, NONE };
+
 ///////////////////////////////////////
 ////          Variables            ////
 ///////////////////////////////////////
@@ -221,7 +224,7 @@ unsigned long nextUpdateTime = 0;
 int currentIdleAnimation = 0;
 int currentIdleAnimationFrame = 0;
 
-int win = 0;
+WinType wintype = NONE;
 int deltaBalance = 0;
 int blinkBalance = 0;
 
@@ -331,37 +334,49 @@ void startSpinning() {
   fillLoseSymbols();
   long randomOurcome = random(100);
 
-  if (randomOurcome < 25) {
-    win = 0; // (25%)
-    for (int i = 0; i < 3; i++) {
-      result[0][i] = random(2) ? winSymbol : loseSymbol;
-      result[1][i] = random(2) ? winSymbol : loseSymbol;
+  if (randomOurcome < 25) { // (25%)
+    wintype = NONE;
+    int emptyRow = random(3);
+    for (int j = 0; j < 3; j++) {
+      for (int i = 0; i < 3; i++) {
+        if (j == emptyRow) {
+          break;
+        }
+        result[0][i] = random(2) ? winSymbol : loseSymbol;
+      }
     }
-  } else if (randomOurcome < 50) {
-    win = 50; // (25%)
+  } else if (randomOurcome < 50) { // (25%)
     if (random(2)) {
+      wintype = DTL;
       result[0][0] = winSymbol;
       result[2][2] = winSymbol;
     } else {
+      wintype = DTR;
       result[0][2] = winSymbol;
       result[2][0] = winSymbol;
     }
     result[1][1] = winSymbol;
-  } else if (randomOurcome < 75) {
-    win = 100; // (25%)
-    int height = random(2) ? 0 : 2;
+  } else if (randomOurcome < 75) { // (25%)
+    int height;
+    if(random(2)){
+        height = 0;
+        wintype = HTOP;
+    } else {
+      height = 2;
+      wintype = HBOT;
+    }
     for (int i = 0; i < 3; i++) {
       result[i][height] = winSymbol;
     }
   } else {
-    win = 200; // (25%)
+    wintype = HMID; // (25%)
     for (int i = 0; i < 3; i++) {
       result[i][1] = winSymbol;
     }
   }
 
   Serial.print("Win: ");
-  Serial.println(win);
+  Serial.println(wintype);
 
   for (int i = 0; i < 3; i++) {
     accel[i] = random(minRandomAccell, maxRandomAccell);
@@ -403,9 +418,25 @@ void spindown() {
     }
     if (speed[0] >= minSpeed && speed[1] >= minSpeed && speed[2] >= minSpeed) {
       Serial.println("Round over!");
-      deltaBalance += win;
-      balance += win;
-      win = 0;
+      switch (wintype) {
+        case HMID:
+          deltaBalance += 200;
+          balance += 200;
+          break;
+        case HTOP:
+        case HBOT:
+          deltaBalance += 100;
+          balance += 100;
+          break;
+        case DTL:
+        case DTR:
+          deltaBalance += 50;
+          balance += 50;
+        break;
+        case NONE:
+        default:
+          break;
+      }
       spinEndTime = millis() + waitBeforeIdle;
       currentState = WAITING;
     }
@@ -421,13 +452,51 @@ void renderMatrix(byte matrix[3][3]) {
       output[segmentOrder[i][j]] = matrix[i][j];
     }
   }
-
-  digitalWrite(latchPin, LOW);
-  for (int i = 0; i < 9; i++) {
-    shiftOut(dataPin, clockPin, LSBFIRST, output[i]);
-  }
-  digitalWrite(latchPin, HIGH);
+  printData(output);
 }
+
+void blinkWin() {
+  byte data[3][3];
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      data[i][j] = result[i][j];
+    }
+  }
+  if (((spinEndTime - millis()) / blinkTime) % 2 == 0) {
+    switch (wintype) {
+      case HMID:
+        data[1][0] = 0b00000000;
+        data[1][1] = 0b00000000;
+        data[1][2] = 0b00000000;
+        break;
+      case HTOP:
+        data[0][0] = 0b00000000;
+        data[0][1] = 0b00000000;
+        data[0][2] = 0b00000000;
+        break;
+      case HBOT:
+        data[2][0] = 0b00000000;
+        data[2][1] = 0b00000000;
+        data[2][2] = 0b00000000;
+        break;
+      case DTL:
+        data[0][0] = 0b00000000;
+        data[1][1] = 0b00000000;
+        data[2][2] = 0b00000000;
+        break;
+      case DTR:
+        data[0][2] = 0b00000000;
+        data[1][1] = 0b00000000;
+        data[2][0] = 0b00000000;
+        break;
+      case NONE:
+      default:
+        break;
+    }
+  }
+  renderMatrix(data);
+}
+
 
 void nextIdleAnimationFrame() {
   if (currentIdleAnimationFrame >= idleAnimationSizes[currentIdleAnimation]) {
@@ -564,6 +633,7 @@ void loop() {
     nextAnimationFrame();
     break;
   case WAITING:
+    blinkWin();
     nextAnimationFrame();
     // do not play an animation
     if (millis() > spinEndTime) {
