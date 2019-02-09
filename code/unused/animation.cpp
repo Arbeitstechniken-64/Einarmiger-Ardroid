@@ -40,13 +40,12 @@ const byte characters[10] = {
 // int offsets[] = {0, 0, 0, 0, 1, -1, 0, 0};
 
 // Characters to display the word HELLO in 7-segment form
-const byte welcome[6] = {
+const byte welcome[5] = {
     0b01111110, // H
-    0b11011101, // E
+    0b11011011, // E
     0b01000011, // L
     0b01000011, // L
     0b11100111, // O
-    0b00000000, // space
 };
 
 const int loadingSpinnerAnimation[6] = {0, 0, 3, 3, 0, -3};
@@ -97,31 +96,43 @@ void setup() {
   digitalWrite(dataPin, LOW);
   digitalWrite(clockPin, LOW);
 
-  digitalWrite(latchPin, LOW);
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
-  digitalWrite(latchPin, HIGH);
-  delay(1000);
+    delay(1000);
+    digitalWrite(latchPin, LOW);
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b11111111));
+    digitalWrite(latchPin, HIGH);
+    delay(1000);
+
+    digitalWrite(latchPin, LOW);
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+    digitalWrite(latchPin, HIGH);
+    delay(1000);
 
   digitalWrite(latchPin, LOW);
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
-  shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
+  for (int i = 4; i >= 0; i--) {
+    shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(welcome[i]));
+  }
   shiftOut(dataPin, clockPin, LSBFIRST, convertToOutput(0b00000000));
   digitalWrite(latchPin, HIGH);
-  delay(1000);
+  while (1) {
+    delay(1000);
+  }
+
 
   // Serial.println("I'm alive!");
 
